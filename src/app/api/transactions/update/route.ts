@@ -47,11 +47,7 @@ export async function POST(request: NextRequest) {
       .from("transactions")
       .update({
         user_category_override: simplifiedCategory,
-        simplified_category: classification.simplifiedCategory,
-        allocation_bucket: classification.allocationBucket,
-        is_fixed_expense: classification.isFixedExpense,
-        is_investment_transfer: classification.isInvestmentTransfer,
-        is_lifestyle: classification.isLifestyle,
+        ...classification,
         trip_id: tripId,
         updated_at: new Date().toISOString()
       })

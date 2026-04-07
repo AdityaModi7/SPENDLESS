@@ -19,4 +19,5 @@ const config = new Configuration({
   }
 });
 
+
 export const plaidClient = new PlaidApi(config);

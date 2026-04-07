@@ -136,10 +136,10 @@ export function classifyTransaction(input: ClassifyInput) {
   const isLifestyle = allocationBucket === "Lifestyle" && input.amount > 0;
 
   return {
-    simplifiedCategory,
-    allocationBucket,
-    isFixedExpense,
-    isInvestmentTransfer,
-    isLifestyle
+    simplified_category: simplifiedCategory,
+    allocation_bucket: allocationBucket,
+    is_fixed_expense: isFixedExpense,
+    is_investment_transfer: isInvestmentTransfer,
+    is_lifestyle: isLifestyle
   };
 }

@@ -10,7 +10,7 @@ import SavingsGoalCard from "@/components/SavingsGoalCard";
 import TrendSummary from "@/components/TrendSummary";
 import TripsPanel from "@/components/TripsPanel";
 import { SIMPLIFIED_CATEGORIES } from "@/lib/budget";
-import { isInDateRange, TimePeriod } from "@/lib/utils";
+import { isInDateRange, formatCurrency, TimePeriod } from "@/lib/utils";
 import { format } from "date-fns";
 
 type Account = {
@@ -44,6 +44,7 @@ type Settings = {
   savings_goal_percent: number;
   warning_threshold_percent: number;
   yearly_event_budget: number;
+  monthly_essentials: number;
 };
 
 type Trip = {
@@ -58,18 +59,23 @@ type DashboardResponse = {
   trips: Trip[];
 };
 
-const LIFESTYLE_BUDGET = 650;
-
 export default function DashboardPage() {
   const [period, setPeriod] = useState<TimePeriod>("week");
   const [data, setData] = useState<DashboardResponse>({ accounts: [], transactions: [], trips: [] });
   const [settings, setSettings] = useState<Settings>({
-    monthly_income: 0,
-    savings_goal_percent: 20,
-    warning_threshold_percent: 90,
-    yearly_event_budget: 2500
+    monthly_income: 4656,
+    savings_goal_percent: 60,
+    warning_threshold_percent: 35,
+    yearly_event_budget: 2500,
+    monthly_essentials: 1363
   });
   const [loading, setLoading] = useState(true);
+  const [sandboxLoading, setSandboxLoading] = useState(false);
+
+  const lifestyleBudget = Math.max(
+    settings.monthly_income - (settings.monthly_income * settings.savings_goal_percent / 100) - settings.monthly_essentials,
+    0
+  );
 
   const loadData = async () => {
     setLoading(true);
@@ -94,6 +100,23 @@ export default function DashboardPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const connectSandbox = async () => {
+    setSandboxLoading(true);
+    try {
+      const res = await fetch("/api/plaid/sandbox-connect", { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json();
+        console.error("Sandbox connect failed:", err);
+        return;
+      }
+      // Sync transactions after connecting
+      await fetch("/api/plaid/sync-transactions", { method: "POST" });
+      await loadData();
+    } finally {
+      setSandboxLoading(false);
     }
   };
 
@@ -239,7 +262,16 @@ export default function DashboardPage() {
           <p className="text-sm text-slate-500 dark:text-slate-400">SpendLens</p>
           <h1 className="text-2xl font-semibold tracking-tight">Personal Finance Dashboard</h1>
         </div>
-        <PlaidLinkButton onConnected={loadData} />
+        <div className="flex gap-2">
+          <button
+            onClick={connectSandbox}
+            disabled={sandboxLoading}
+            className="rounded-lg border border-amber-500 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-600 dark:bg-amber-950/30 dark:text-amber-400 dark:hover:bg-amber-950/50"
+          >
+            {sandboxLoading ? "Connecting..." : "Connect Sandbox Account"}
+          </button>
+          <PlaidLinkButton onConnected={loadData} />
+        </div>
       </header>
 
       <section className="flex gap-2">
@@ -287,7 +319,7 @@ export default function DashboardPage() {
 
       <LifestyleHero
         lifestyleSpent={lifestyleSpentThisMonth}
-        lifestyleBudget={LIFESTYLE_BUDGET}
+        lifestyleBudget={lifestyleBudget}
         warningPercent={settings.warning_threshold_percent}
         allocationTotals={allocationTotals}
       />
@@ -305,7 +337,7 @@ export default function DashboardPage() {
 
       <DailySpendingLog transactions={filteredLifestyleTransactions} trips={data.trips} onUpdated={loadData} />
 
-      <CategoryBreakdown categories={categories} lifestyleBudget={LIFESTYLE_BUDGET} />
+      <CategoryBreakdown categories={categories} lifestyleBudget={lifestyleBudget} />
 
       <CreditCardsPanel cards={creditCards} onRenamed={loadData} />
 

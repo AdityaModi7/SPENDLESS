@@ -59,10 +59,11 @@ create table if not exists transactions (
 
 create table if not exists user_settings (
   user_id text primary key references users(id) on delete cascade,
-  monthly_income numeric not null default 0,
-  savings_goal_percent numeric not null default 20,
-  warning_threshold_percent numeric not null default 90,
+  monthly_income numeric not null default 4656,
+  savings_goal_percent numeric not null default 60,
+  warning_threshold_percent numeric not null default 35,
   yearly_event_budget numeric not null default 2500,
+  monthly_essentials numeric not null default 1363,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -90,6 +91,7 @@ begin
   end if;
 end $$;
 
+
 alter table if exists transactions add column if not exists plaid_primary_category text;
 alter table if exists transactions add column if not exists simplified_category text default 'Other';
 alter table if exists transactions add column if not exists user_category_override text;
@@ -107,6 +109,8 @@ insert into users (id, email)
 values ('local-user', 'local@spendlens.app')
 on conflict (id) do nothing;
 
-insert into user_settings (user_id, monthly_income, savings_goal_percent, warning_threshold_percent, yearly_event_budget)
-values ('local-user', 4800, 20, 85, 2500)
+alter table if exists user_settings add column if not exists monthly_essentials numeric not null default 1363;
+
+insert into user_settings (user_id, monthly_income, savings_goal_percent, warning_threshold_percent, yearly_event_budget, monthly_essentials)
+values ('local-user', 4656, 60, 35, 2500, 1363)
 on conflict (user_id) do nothing;

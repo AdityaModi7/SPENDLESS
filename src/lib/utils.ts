@@ -42,7 +42,11 @@ export function getDateRange(period: TimePeriod): { start: Date; end: Date } {
 }
 
 export function isInDateRange(date: string, period: TimePeriod): boolean {
-  const value = new Date(date);
+  // Parse date-only strings (YYYY-MM-DD) as local time, not UTC
+  const parts = date.split("-");
+  const value = parts.length === 3
+    ? new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    : new Date(date);
   const range = getDateRange(period);
   return value >= range.start && value <= range.end;
 }
