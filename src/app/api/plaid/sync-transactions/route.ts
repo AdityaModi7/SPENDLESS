@@ -1,21 +1,18 @@
 import { plaidClient } from "@/lib/plaid";
 import { getSupabaseAdmin } from "@/lib/supabase";
-import { classifyTransaction } from "@/lib/budget";
 import { NextResponse } from "next/server";
 import { RemovedTransaction, Transaction } from "plaid";
 
 async function syncItemTransactions(itemId: string, accessToken: string) {
   const supabase = getSupabaseAdmin();
-  let cursor: string | null = null;
 
   const { data: itemRow } = await supabase
     .from("plaid_items")
-    .select("user_id")
+    .select("user_id,sync_cursor")
     .eq("item_id", itemId)
     .single();
 
   const userId = itemRow?.user_id;
-
   if (!userId) {
     throw new Error(`Missing user_id for item ${itemId}`);
   }
@@ -38,14 +35,7 @@ async function syncItemTransactions(itemId: string, accessToken: string) {
     await supabase.from("accounts").upsert(accountRows);
   }
 
-  const { data: cursorRow } = await supabase
-    .from("plaid_items")
-    .select("sync_cursor")
-    .eq("item_id", itemId)
-    .single();
-
-  cursor = cursorRow?.sync_cursor ?? null;
-
+  let cursor: string | null = itemRow?.sync_cursor ?? null;
   let hasMore = true;
 
   while (hasMore) {
@@ -55,12 +45,8 @@ async function syncItemTransactions(itemId: string, accessToken: string) {
       count: 100
     });
 
-    const added = response.data.added;
-    const modified = response.data.modified;
-    const removed = response.data.removed;
-
-    await upsertTransactions(itemId, [...added, ...modified]);
-    await deleteTransactions(removed);
+    await upsertTransactions(itemId, [...response.data.added, ...response.data.modified]);
+    await deleteTransactions(response.data.removed);
 
     cursor = response.data.next_cursor;
     hasMore = response.data.has_more;
@@ -82,25 +68,7 @@ async function upsertTransactions(itemId: string, transactions: Transaction[]) {
   }
 
   const supabase = getSupabaseAdmin();
-  const plaidIds = transactions.map((tx) => tx.transaction_id);
-  const { data: existingRows } = await supabase
-    .from("transactions")
-    .select("plaid_transaction_id,user_category_override")
-    .in("plaid_transaction_id", plaidIds);
-
-  const overrideMap = new Map<string, string | null>();
-  for (const row of existingRows || []) {
-    overrideMap.set(row.plaid_transaction_id, row.user_category_override);
-  }
-
   const rows = transactions.map((tx) => ({
-    ...classifyTransaction({
-      merchantName: tx.merchant_name,
-      name: tx.name,
-      plaidPrimaryCategory: tx.personal_finance_category?.primary,
-      amount: tx.amount,
-      categoryOverride: overrideMap.get(tx.transaction_id) || null
-    }),
     plaid_transaction_id: tx.transaction_id,
     item_id: itemId,
     account_id: tx.account_id,
@@ -108,8 +76,7 @@ async function upsertTransactions(itemId: string, transactions: Transaction[]) {
     name: tx.name,
     amount: tx.amount,
     date: tx.date,
-    plaid_primary_category: tx.personal_finance_category?.primary || null,
-    category: tx.personal_finance_category?.primary || tx.category?.[0] || "Other",
+    category: tx.personal_finance_category?.primary || tx.category?.[0] || "OTHER",
     pending: tx.pending
   }));
 

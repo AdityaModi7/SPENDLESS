@@ -1,6 +1,8 @@
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 const USER_ID = "local-user";
 
 export async function GET() {
@@ -8,7 +10,7 @@ export async function GET() {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("accounts")
-      .select("id,name,custom_name,type,subtype,current_balance")
+      .select("id,name,type,subtype,current_balance")
       .eq("user_id", USER_ID)
       .order("name", { ascending: true });
 

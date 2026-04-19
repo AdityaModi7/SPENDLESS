@@ -9,29 +9,11 @@ Minimal personal finance dashboard built with Next.js, Plaid, and Supabase.
 - Plaid API (`transactions/sync` incremental sync)
 - Vercel-ready (includes daily cron)
 
-## Features (Spreadsheet-style v1)
+## MVP features
 - Connect bank + credit card accounts with Plaid Link
 - Secure server-side storage of Plaid `access_token` in Supabase (`plaid_items`)
-- Daily transaction sync endpoint using Plaid `transactions/sync`
-- Zero manual entry for expenses (all transactions come from Plaid sync)
-- Automatic transaction classification:
-   - Plaid category + merchant matching → simplified buckets
-   - Auto-detect fixed expenses and investment transfers
-   - Lifestyle spend excludes fixed + investments + savings transfers
-- Dashboard views: `This Week`, `This Month`, `This Pay Period`, `All Time`
-- Monthly hero: `Lifestyle spent this month: $X / $650` with green/yellow/red budget bar
-- Daily spending log grouped by week and day (Mon-Sun week boundaries)
-- Simplified category breakdown with `% of lifestyle budget`
-- Credit card breakdown with per-card spend + current balances
-- Trip/Event tracking:
-   - Create trip/event
-   - Tag transactions to a trip/event
-   - Track yearly trip spend vs yearly event budget (default `$2,500`)
-- Weekly and monthly summaries with monthly trend chart
-- Savings/investment tracker (Roth IRA, brokerage, savings transfers)
-- Manual actions limited to:
-   - Re-categorize a transaction
-   - Tag transaction to a trip/event
+- Daily transaction sync via Plaid `transactions/sync` (Vercel cron at 09:00 UTC)
+- Dashboard: week / month view, total spent, accounts + balances, spend by Plaid category, transaction list
 
 ## 1) Setup
 1. Install dependencies:
@@ -54,19 +36,12 @@ Minimal personal finance dashboard built with Next.js, Plaid, and Supabase.
 
 ## 2) Supabase schema
 1. Open Supabase SQL Editor.
-2. Run [supabase/schema.sql](supabase/schema.sql).
-3. (Optional) Run [supabase/seed_sandbox.sql](supabase/seed_sandbox.sql).
-
-This schema includes:
-- `user_settings` (income, warning %, savings %, yearly event budget)
-- `trips`
-- transaction classification fields (`simplified_category`, `allocation_bucket`, flags)
+2. Run [supabase/schema.sql](supabase/schema.sql). Safe to re-run — it drops legacy tables/columns from prior versions.
 
 ## 3) Plaid sandbox test flow
-- Use Plaid Link in UI and pick institution `ins_109508` (First Platypus Bank).
-- Complete sandbox login in Link.
-- On success, app exchanges token and triggers sync automatically.
-- You can manually trigger sync:
+- Click **Sandbox** in the UI (works when `PLAID_ENV=sandbox`).
+- Or use Plaid Link with institution `ins_109508` (First Platypus Bank).
+- Manually trigger sync:
   ```bash
   curl -X POST http://localhost:3000/api/plaid/sync-transactions
   ```
@@ -80,13 +55,10 @@ Visit `http://localhost:3000`.
 ## API routes
 - `POST /api/plaid/create-link-token`
 - `POST /api/plaid/exchange-token`
+- `POST /api/plaid/sandbox-connect`
 - `POST|GET /api/plaid/sync-transactions`
 - `GET /api/accounts`
-- `POST /api/accounts/rename`
 - `GET /api/transactions`
-- `POST /api/transactions/update` (re-category + trip tag)
-- `GET|POST /api/settings`
-- `GET|POST /api/trips`
 
 ## Vercel deploy
 - Import repo in Vercel.
